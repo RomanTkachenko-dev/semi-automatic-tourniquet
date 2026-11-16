@@ -397,35 +397,6 @@
     } else if (DYN_INFO[id]) { h += `<p>${DYN_INFO[id][0]}</p>`; if (DYN_INFO[id][1]) h += `<div class="kv"><div>Матеріал</div><div>${G.MAT[DYN_INFO[id][1]].name}</div></div>`; }
     inf.innerHTML = h;
   }
-  function bom() {
-    let rows = '', tot = 0, k = 0;
-    for (const [gname, ids] of groupsUI) {
-      rows += `<tr><td colspan="7" style="font-weight:600;padding-top:10px">${gname}</td></tr>`;
-      for (const id of ids) {
-        const o = byId[id]; if (!o || !o.part) continue; k++;
-        const ms = massOf(o); if (o.mat !== 'eva') tot += ms;
-        rows += `<tr><td class="num">${k}</td><td>${o.name}</td><td class="num">${o.part.qty}</td><td>${G.MAT[o.mat].name}</td><td class="num">${o.mat === 'eva' ? (ms.toFixed(1)) : ms < 1 ? ms.toFixed(2) : ms.toFixed(1)}</td><td>${o.part.dims || ''}</td><td>${o.part.func || ''}</td></tr>`;
-      }
-    }
-    const R0 = sc().C * 1000 / TAU, bandLen = (TAU * (R0 + 4) + 200 + 2 * 75) / 1000, bandM = bandLen * 0.09 * 200;
-    rows += `<tr><td></td><td>Стрічка UHMWPE 90 × 0,3 мм (довжина ${Math.round(bandLen * 1000)} мм)</td><td class="num">1</td><td>${G.MAT.webbing.name}</td><td class="num">${bandM.toFixed(0)}</td><td>200 г/м²</td><td>Кінці приклеєні до труб барабанів на півоберта.</td></tr>`;
-    rows += `<tr><td></td><td>Шнур Dyneema SK99 Ø3, ≈ 105 мм</td><td class="num">1</td><td>${G.MAT.cord.name}</td><td class="num">0,7</td><td></td><td>Від шківа до поршня, весь у газовому об’ємі.</td></tr>`;
-    tot += bandM + 0.7 + 2.6;
-    $('bomT').textContent = 'Геометрія v5.1 · розрахунок v5.2';
-    $('bom').innerHTML = `<p class="meta" style="color:var(--ink2)">Маси пораховано з об’ємів 3D-моделі. Модуль разом зі стрічкою, шнуром і підкладкою (без рукава): <b>${tot.toFixed(0)} г</b> (v4 — 665 г). Габарит: ${(G.P.Yp - G.P.Ym).toFixed(0)} × ${G.P.HZ - G.P.ZM} × ${G.P.HX} мм над сідлом. Уставка регулятора для цього стегна: <b>${sc().P_set.toFixed(1)} бар</b>.</p>
-      <table><thead><tr><th>№</th><th>Деталь</th><th>К-сть</th><th>Матеріал</th><th>Маса, г</th><th>Розміри</th><th>Призначення</th></tr></thead><tbody>${rows}</tbody></table>`;
-    $('modal').style.display = 'flex';
-  }
-  function verifyTable() {
-    const VF = window.VERIFY; if (!VF) return;
-    $('bomT').textContent = 'Перевірка чисельної моделі v5.2';
-    $('bom').innerHTML = `<p>${VF.intro}</p><p>${VF.modes}</p><ul>${VF.tests.map(t => `<li>${t}</li>`).join('')}</ul>`;
-    $('modal').style.display = 'flex';
-  }
-  if ($('bVer')) $('bVer').onclick = verifyTable;
-  $('bBom').onclick = bom; $('bClose').onclick = () => { $('modal').style.display = 'none'; };
-  $('modal').onclick = (e) => { if (e.target.id === 'modal') $('modal').style.display = 'none'; };
-
   // ------------------------------------------------------------------ charts
   const charts = [
     { title: 'Тиск під стрічкою, мм рт. ст.', keys: ['pmin', 'pmax'], names: ['найслабша точка', 'біля модуля'], ref: (s) => [[s.P_occ, 'довідковий поріг ' + Math.round(s.P_occ)], [s.P_occ * 1.3, 'ціль ×1,3']] },
@@ -438,7 +409,9 @@
     const s = sc(), tEnd = s.t[s.t.length - 1];
     charts.forEach((c, k) => {
       const cv = $('c' + k), dpr = Math.min(2, window.devicePixelRatio || 1), W = cv.clientWidth, H = cv.clientHeight;
-      if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+      const width = Math.round(W * dpr), height = Math.round(H * dpr);
+      if (cv.width !== width) cv.width = width;
+      if (cv.height !== height) cv.height = height;
       const x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
       const L = 40, R = 10, Tp = 24, B = 20, pw = W - L - R, ph = H - Tp - B;
       const conv = c.conv || ((v) => v);
