@@ -469,11 +469,12 @@
   }
 
   // ------------------------------------------------------------------ loop & controls
-  let curState = null, lastT = performance.now();
+  let curState = null, lastT = null;
   S.phase = 0; S.gphase = 0;
   function tauRange() { const s = sc(); return [T0 - 0.04, s.t[s.t.length - 1] + 0.05]; }
   function frame(now) {
-    const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+    const dt = lastT === null ? 0 : Math.max(0, Math.min(0.05, (now - lastT) / 1000));
+    lastT = now;
     const [a, b] = tauRange();
     if (S.playing) { S.tau += dt / S.slow; if (S.tau >= b) { S.tau = b; S.playing = false; $('bPlay').textContent = '▶ Спрацювання'; } $('scrub').value = Math.round(1000 * (S.tau - a) / (b - a)); }
     const st = stateAt(S.tau); curState = st;
