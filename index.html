@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Semi-automatic tourniquet</title>
+<style>
+  :root {
+    --bg: #eef0f2; --panel: rgba(255,255,255,0.94); --ink: #16181b; --ink2: #5b6068; --line: #d7dade;
+    --accent: #2a78d6; --good: #1f8a4c; --bad: #c2412d; --chip: #f2f4f6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink);
+    font: 13px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #app { display: grid; grid-template-columns: 250px 1fr 290px; grid-template-rows: 48px 1fr 214px; height: 100%; }
+  header { grid-column: 1 / 4; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-bottom: 1px solid var(--line); background: #fff; }
+  header h1 { font-size: 15px; margin: 0 12px 0 0; white-space: nowrap; }
+  header .sp { flex: 1; }
+  select, button, input[type=range] { font: inherit; }
+  select { padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; background: #fff; max-width: 290px; }
+  button { padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; white-space: nowrap; }
+  button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  button:hover { border-color: #9aa1a9; }
+  #left { grid-column: 1; grid-row: 2; } #view { grid-column: 2; grid-row: 2; } #right { grid-column: 3; grid-row: 2; }
+  #left, #right { background: var(--panel); overflow: auto; border-right: 1px solid var(--line); }
+  #right { border-right: 0; border-left: 1px solid var(--line); padding: 10px 12px; }
+  #left { padding: 8px 6px 12px 10px; }
+  #view { position: relative; overflow: hidden; }
+  #gl { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  #gl:active { cursor: grabbing; }
+  .grp { margin-top: 8px; }
+  .grp > div.h { font-weight: 600; color: var(--ink2); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; padding: 4px 0; display: flex; align-items: center; gap: 6px; }
+  .pi { display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 5px; cursor: pointer; }
+  .pi:hover { background: var(--chip); }
+  .pi.sel { background: #dbe8f8; }
+  .pi input { margin: 0; }
+  .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; border: 1px solid rgba(0,0,0,.15); }
+  .pi span.n { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #bottom { grid-column: 1 / 4; grid-row: 3; background: #fff; border-top: 1px solid var(--line); display: grid; grid-template-rows: 40px minmax(0, 1fr); min-height: 0; }
+  #controls { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+  #scrub { flex: 1; }
+  #clock { font-variant-numeric: tabular-nums; min-width: 160px; color: var(--ink2); }
+  #charts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; min-height: 0; overflow: hidden; }
+  #charts canvas { min-height: 0; }
+  #charts canvas { width: 100%; height: 100%; display: block; border-right: 1px solid var(--line); }
+  .kv { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; font-variant-numeric: tabular-nums; }
+  .kv div:nth-child(odd) { color: var(--ink2); }
+  .kv div:nth-child(even) { text-align: right; font-weight: 600; }
+  h3 { font-size: 12px; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink2); }
+  h2 { font-size: 15px; margin: 2px 0 6px; }
+  #phase { font-size: 14px; font-weight: 700; margin: 2px 0 8px; }
+  #flow { height: 8px; border-radius: 4px; background: #eee; overflow: hidden; margin-top: 4px; }
+  #flow > div { height: 100%; background: #c2412d; width: 100%; transition: width .1s; }
+  #info p { margin: 6px 0; color: #2b2f35; }
+  #info .meta { color: var(--ink2); font-size: 12px; }
+  .ovl { position: absolute; left: 10px; top: 10px; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - 20px); }
+  .ovl .box { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; display: flex; align-items: center; gap: 6px; }
+  .ovl label { color: var(--ink2); }
+  #legend { position: absolute; right: 10px; bottom: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: 11px; color: var(--ink2); }
+  #legend .bar { width: 180px; height: 8px; border-radius: 3px; margin: 4px 0 2px; }
+  #legend .ticks { display: flex; justify-content: space-between; }
+  #modal { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; align-items: center; justify-content: center; z-index: 9; }
+  #modal .card { background: #fff; border-radius: 10px; width: min(980px, 94vw); max-height: 86vh; overflow: auto; padding: 14px 18px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--ink2); font-weight: 600; position: sticky; top: 0; background: #fff; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  #hint { position: absolute; left: 10px; bottom: 10px; color: var(--ink2); font-size: 11px; background: var(--panel); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); }
+  #err { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 30px; text-align: center; color: var(--bad); }
+  @media (max-width: 1100px) { #app { grid-template-columns: 0 1fr 260px; } #left { display: none; } }
+  @media (max-width: 760px) { #app { grid-template-columns: 0 1fr 0; grid-template-rows: auto 1fr 200px; } #right { display: none; } header { flex-wrap: wrap; padding: 6px; } #charts { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body><div role="note" style="padding:4px 12px; background:#fff2d7; color:#422d0b; font:13px system-ui">Стендова розрахункова модель. Кровотік не розраховується. Клінічну ефективність не підтверджено.</div>
+<div id="app">
+  <header>
+    <h1>ІМПУЛЬС v5.2 · виправлений розрахунок</h1>
+    <select id="scen" title="Сценарій симуляції"></select>
+    <select id="slow" title="Сповільнення">
+      <option value="5">×5 повільніше</option>
+      <option value="20" selected>×20 повільніше</option>
+      <option value="80">×80 повільніше</option>
+    </select>
+    <span class="sp"></span>
+    <button id="bVer">Перевірка</button>
+    <button id="bBom">Специфікація</button>
+  </header>
+  <aside id="left"><div id="tree"></div></aside>
+  <main id="view">
+    <canvas id="gl"></canvas>
+    <div class="ovl">
+      <div class="box">
+        <button data-mode="full" class="on">Зібраний</button>
+        <button data-mode="open">Без кришки</button>
+        <button data-mode="cut">Розріз</button>
+        <button data-mode="explode">Рознесений</button>
+      </div>
+      <div class="box" id="cutBox" style="display:none"><select id="cutT"><option value="h">Горизонтальний розріз</option><option value="drum">Поперечний: шлях стрічки, барабани, ролики</option><option value="ratchet">Храповик і собачки (з боку ручки)</option><option value="valve">Клапан подачі, датчик натягу, важіль проколу</option><option value="gas">Балончик в осі барабана 2, голка</option><option value="cyl">Привід: шків, шнур, циліндр</option></select><span id="cutHBox"><input id="cutH" type="range" min="4" max="51" value="30" step="0.5"> <span id="cutV">30 мм</span></span></div>
+      <div class="box" id="expBox" style="display:none"><label>Рознесення</label><input id="expK" type="range" min="0" max="1" value="0.8" step="0.01"></div>
+      <div class="box">
+        <button id="bSkin">Прозора шкіра</button>
+        <button id="bBody" class="on">Стегно</button>
+      </div>
+      <div class="box">
+        <button data-cam="iso">Загальний</button>
+        <button data-cam="top">Зверху</button>
+        <button data-cam="side">Вздовж осі</button>
+        <button data-cam="leg">Стегно</button>
+      </div>
+      <div class="box" title="Показ геометрії розблокування; динаміка скидання тиску та послаблення не розрахована">
+        <label>Ручка послаблення</label>
+        <button data-rk="0" class="on">Замкнено</button>
+        <button data-rk="1">Відкрито</button>
+      </div>
+    </div>
+    <div id="legend"><div>Тиск стрічки на стегно, мм рт. ст.</div><div class="bar" id="lgBar"></div><div class="ticks"><span>0</span><span>150</span><span>300</span><span>450</span><span>600</span></div></div>
+    <div id="hint">Ліва кнопка — обертати · права / Shift — зсув · коліщатко — масштаб · клік — деталь</div>
+    <div id="err"></div>
+  </main>
+  <aside id="right">
+    <div id="phase">Носіння</div>
+    <div class="kv" id="read"></div>
+    <div style="margin-top:8px;color:var(--ink2);font-size:12px">Досягнення розрахункового критерію тиску</div>
+    <div id="flow"><div></div></div>
+    <h3>Деталь</h3>
+    <div id="info"><p class="meta">Клікніть по деталі в моделі або в списку ліворуч.</p></div>
+  </aside>
+  <section id="bottom">
+    <div id="controls">
+      <button id="bPlay">▶ Спрацювання</button>
+      <button id="bReset">⟲ На початок</button>
+      <input id="scrub" type="range" min="0" max="1000" value="0">
+      <span id="clock"></span>
+    </div>
+    <div id="charts"><canvas id="c0"></canvas><canvas id="c1"></canvas><canvas id="c2"></canvas><canvas id="c3"></canvas></div>
+  </section>
+</div>
+<div id="modal"><div class="card"><div style="display:flex;align-items:center"><h2 style="flex:1" id="bomT">Специфікація модуля v5.2 · виправлений розрахунок</h2><button id="bClose">Закрити</button></div><div id="bom"></div></div></div>
+<script src="geom.js"></script>
+<script src="simdata.js"></script>
+<script src="verify.js"></script>
+<script src="viewer.js"></script>
+</body>
+</html>
+
+
